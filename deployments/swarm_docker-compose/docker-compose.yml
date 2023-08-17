@@ -1,0 +1,104 @@
+version: "3.8"
+
+networks:
+  apps:
+
+secrets:
+  repo_password:
+    file: /etc/secrets/repo_password.txt
+  api_key:
+    file: /etc/secrets/api_key.txt
+
+services:
+  proxy:
+    env_file: ../.env
+    build: "${PROXY_IMAGE_PATH}"
+    image: "localhost:5000/${PROXY_IMAGE_NAME}:${PROXY_IMAGE_TAG}"
+    volumes:
+      - type: bind
+        source: /etc/ca-certificates/proxy
+        target: /etc/nginx/certs
+        read_only: yes
+    ports:
+      - 8443:8443
+    networks:
+      - apps
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 50M
+        reservations:
+          cpus: '0.25'
+          memory: 20M
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp+tls://${SYSLOG_SERVER}:${SYSLOG_PORT}"
+        syslog-tls-ca-cert: "${SYSLOG_CA_CERT}"
+        syslog-tls-cert: "${SYSLOG_CERT}"
+        syslog-tls-key: "${SYSLOG_KEY}"
+        tag: "${PROXY_IMAGE_NAME}:${PROXY_IMAGE_TAG}"
+
+  marketing-app:
+    env_file: ../.env
+    build: "${MARKETING_IMAGE_PATH}"
+    image: "localhost:5000/${MARKETING_IMAGE_NAME}:${MARKETING_IMAGE_TAG}"
+    volumes:
+      - type: bind
+        source: /data/marketing/customer-list.csv
+        target: /data/customer-list.csv
+    secrets:
+      - repo_password
+    networks:
+      - apps
+    cap_drop:
+      - ALL
+    environment:
+      REPO_USERNAME: internalUser
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 100M
+        reservations:
+          cpus: '0.25'
+          memory: 50M
+    logging:
+      driver: "none"
+
+  finance-app:
+    env_file: ../.env    
+    build: "${FINANCE_IMAGE_PATH}"
+    image: "localhost:5000/${FINANCE_IMAGE_NAME}:${FINANCE_IMAGE_TAG}"
+    volumes:
+      - type: bind
+        source: /data/finance/user-list.csv
+        target: /data/user-list.csv
+    secrets:
+      - repo_password
+      - api_key
+    networks:
+      - apps
+    cap_drop:
+      - ALL
+    environment:
+      REPO_USERNAME: internalUser
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 100M
+        reservations:
+          cpus: '0.25'
+          memory: 50M
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp+tls://${SYSLOG_SERVER}:${SYSLOG_PORT}"
+        syslog-tls-ca-cert: "${SYSLOG_CA_CERT}"
+        syslog-tls-cert: "${SYSLOG_CERT}"
+        syslog-tls-key: "${SYSLOG_KEY}"
+        tag: "${FINANCE_IMAGE_NAME}:${FINANCE_IMAGE_TAG}"
