@@ -1,0 +1,8 @@
+## Specify the content to be included in the context using an Allowlist approach
+
+# Ignore everything
+*
+
+# Allow only code under src/ folder
+!src/
+!run.sh
